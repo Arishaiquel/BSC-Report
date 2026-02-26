@@ -64,7 +64,7 @@ export async function registerRoutes(
         let rspProduct = "";
 
         // Buy section
-        const buyHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.includes("Buy"));
+        const buyHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.trim() === "Buy");
         if (buyHeader) {
           const nextP = buyHeader.parentElement?.nextElementSibling;
           if (nextP && nextP.tagName === "P") {
@@ -75,15 +75,23 @@ export async function registerRoutes(
             const rows = table.querySelectorAll("tr");
             if (rows.length > 1) {
               const headers = Array.from(rows[0].querySelectorAll("th, td")).map(h => h.textContent?.trim() || "");
-              const cols = Array.from(rows[1].querySelectorAll("td")).map(c => c.textContent?.trim() || "");
-              const idx = headers.findIndex(h => h.includes("Investment Amount"));
-              if (idx !== -1) buyAmount = cols[idx];
+              const amountIdx = headers.findIndex(h => h.includes("Investment Amount"));
+              
+              let totalBuy = 0;
+              for (let i = 1; i < rows.length; i++) {
+                const cols = Array.from(rows[i].querySelectorAll("td")).map(c => c.textContent?.trim() || "");
+                if (amountIdx !== -1 && cols[amountIdx]) {
+                  const val = parseFloat(cols[amountIdx].replace(/[^0-9.]/g, ""));
+                  if (!isNaN(val)) totalBuy += val;
+                }
+              }
+              if (totalBuy > 0) buyAmount = `SGD ${totalBuy.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             }
           }
         }
 
         // RSP section
-        const rspHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.includes("RSP Application"));
+        const rspHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.trim() === "RSP Application");
         if (rspHeader) {
           const nextP = rspHeader.parentElement?.nextElementSibling;
           if (nextP && nextP.tagName === "P") {
@@ -94,9 +102,17 @@ export async function registerRoutes(
             const rows = table.querySelectorAll("tr");
             if (rows.length > 1) {
               const headers = Array.from(rows[0].querySelectorAll("th, td")).map(h => h.textContent?.trim() || "");
-              const cols = Array.from(rows[1].querySelectorAll("td")).map(c => c.textContent?.trim() || "");
-              const idx = headers.findIndex(h => h.includes("RSP Amount"));
-              if (idx !== -1) rspAmount = cols[idx];
+              const amountIdx = headers.findIndex(h => h.includes("RSP Amount"));
+              
+              let totalRsp = 0;
+              for (let i = 1; i < rows.length; i++) {
+                const cols = Array.from(rows[i].querySelectorAll("td")).map(c => c.textContent?.trim() || "");
+                if (amountIdx !== -1 && cols[amountIdx]) {
+                  const val = parseFloat(cols[amountIdx].replace(/[^0-9.]/g, ""));
+                  if (!isNaN(val)) totalRsp += val;
+                }
+              }
+              if (totalRsp > 0) rspAmount = `SGD ${totalRsp.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             }
           }
         }
