@@ -102,12 +102,16 @@ export async function registerRoutes(
         }
 
         // RSP section
-        const rspHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.trim().includes("RSP Application"));
+        const rspHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => {
+          const text = el.textContent?.trim() || "";
+          return text === "RSP Application" || text.includes("RSP Application");
+        });
+
         if (rspHeader) {
           const parent = rspHeader.parentElement;
           let current = parent?.nextElementSibling;
           
-          // Skip potentially empty text nodes/tags until we find the wording <p>
+          // Skip potentially empty text nodes/tags or <br> until we find the wording <p>
           while (current && current.tagName !== "P") {
             current = current.nextElementSibling;
           }
@@ -126,7 +130,8 @@ export async function registerRoutes(
             const rows = current.querySelectorAll("tr");
             if (rows.length > 1) {
               const headers = Array.from(rows[0].querySelectorAll("th, td")).map(h => h.textContent?.trim() || "");
-              const amountIdx = headers.findIndex(h => h.includes("RSP Amount"));
+              // Support both "RSP Amount" and just "Amount" (found in some RSP tables)
+              const amountIdx = headers.findIndex(h => h === "Amount" || h.includes("Amount"));
               
               let totalRsp = 0;
               for (let i = 1; i < rows.length; i++) {
@@ -136,7 +141,9 @@ export async function registerRoutes(
                   if (!isNaN(val)) totalRsp += val;
                 }
               }
-              if (totalRsp > 0) rspAmount = `SGD ${totalRsp.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              if (totalRsp > 0) {
+                rspAmount = `SGD ${totalRsp.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              }
             }
           }
         }
