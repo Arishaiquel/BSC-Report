@@ -64,15 +64,26 @@ export async function registerRoutes(
         let rspProduct = "";
 
         // Buy section
-        const buyHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.trim() === "Buy");
+        const buyHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.trim().includes("Buy"));
         if (buyHeader) {
-          const nextP = buyHeader.parentElement?.nextElementSibling;
-          if (nextP && nextP.tagName === "P") {
-            buyProduct = nextP.textContent?.trim() || "";
+          const parent = buyHeader.parentElement;
+          let current = parent?.nextElementSibling;
+          
+          while (current && current.tagName !== "P") {
+            current = current.nextElementSibling;
           }
-          const table = buyHeader.parentElement?.nextElementSibling?.nextElementSibling;
-          if (table && table.tagName === "TABLE") {
-            const rows = table.querySelectorAll("tr");
+          
+          if (current && current.tagName === "P") {
+            buyProduct = current.textContent?.trim() || "";
+            current = current.nextElementSibling;
+          }
+          
+          while (current && current.tagName !== "TABLE") {
+            current = current.nextElementSibling;
+          }
+          
+          if (current && current.tagName === "TABLE") {
+            const rows = current.querySelectorAll("tr");
             if (rows.length > 1) {
               const headers = Array.from(rows[0].querySelectorAll("th, td")).map(h => h.textContent?.trim() || "");
               const amountIdx = headers.findIndex(h => h.includes("Investment Amount"));
@@ -91,15 +102,28 @@ export async function registerRoutes(
         }
 
         // RSP section
-        const rspHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.trim() === "RSP Application");
+        const rspHeader = Array.from(doc.querySelectorAll("b, strong")).find(el => el.textContent?.trim().includes("RSP Application"));
         if (rspHeader) {
-          const nextP = rspHeader.parentElement?.nextElementSibling;
-          if (nextP && nextP.tagName === "P") {
-            rspProduct = nextP.textContent?.trim() || "";
+          const parent = rspHeader.parentElement;
+          let current = parent?.nextElementSibling;
+          
+          // Skip potentially empty text nodes/tags until we find the wording <p>
+          while (current && current.tagName !== "P") {
+            current = current.nextElementSibling;
           }
-          const table = rspHeader.parentElement?.nextElementSibling?.nextElementSibling;
-          if (table && table.tagName === "TABLE") {
-            const rows = table.querySelectorAll("tr");
+          
+          if (current && current.tagName === "P") {
+            rspProduct = current.textContent?.trim() || "";
+            current = current.nextElementSibling;
+          }
+          
+          // Look for the table
+          while (current && current.tagName !== "TABLE") {
+            current = current.nextElementSibling;
+          }
+          
+          if (current && current.tagName === "TABLE") {
+            const rows = current.querySelectorAll("tr");
             if (rows.length > 1) {
               const headers = Array.from(rows[0].querySelectorAll("th, td")).map(h => h.textContent?.trim() || "");
               const amountIdx = headers.findIndex(h => h.includes("RSP Amount"));
