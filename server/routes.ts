@@ -94,20 +94,28 @@ export async function registerRoutes(
           while (current) {
             const currentText = current.textContent?.trim() || "";
             
-            // If we hit another main header, stop this section
+            // If we hit another main header, check if it's one we should skip
             if (current.querySelector("b, strong")) {
               const innerText = current.querySelector("b, strong")?.textContent?.trim() || "";
-              // Any bold/strong header with underline-like styling signals a new section
-              if (current.style.textDecoration === "underline" || (current.firstChild?.tagName === "B" || current.firstChild?.tagName === "STRONG")) {
-                 break;
+              
+              // If it's a different section that is NOT Buy or RSP Application, we stop this section's processing.
+              // This handles cases like Buy -> Switch -> RSP Application correctly.
+              if (innerText !== headerText && 
+                  ["Switch", "Sell", "Rebalance", "RSP Amendment", "Consolidated Dividend"].some(s => innerText.includes(s))) {
+                break;
+              }
+              
+              // If we hit a DIFFERENT valid section (e.g. processing Buy and we hit RSP Application), 
+              // we also stop because that section will be handled by its own iteration of the outer loop.
+              if (innerText !== headerText && (innerText === "Buy" || innerText === "RSP Application")) {
+                break;
               }
             }
             
-            // Safety break if we see common header words in bold
-            const boldChild = current.querySelector("b, strong");
-            if (boldChild) {
-              const boldText = boldChild.textContent?.trim() || "";
-              if (["Switch", "Sell", "Rebalance", "RSP Amendment", "Consolidated Dividend"].some(s => boldText.includes(s))) {
+            // Check for the specific underlined headers as well
+            if (current.tagName === "P" && current.style.textDecoration === "underline") {
+              const pText = current.textContent?.trim() || "";
+              if (pText !== headerText && ["Switch", "Sell", "Rebalance", "RSP Amendment"].some(s => pText.includes(s))) {
                 break;
               }
             }
