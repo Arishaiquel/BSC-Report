@@ -55,13 +55,15 @@ export async function registerRoutes(
           policyNumber = policyMatch[1];
         }
 
-        // Submission Date extraction from the email body if possible, fallback to parsed.date
+        // Date extraction from filename (format: ..._YYYYMMDD_...)
         let submissionDate = "";
-        const dateMatch = bodyText.match(/(\d{2}-\d{2}-\d{4})/);
-        if (dateMatch) {
-          submissionDate = dateMatch[1];
+        const filename = file.originalname || "";
+        const filenameDateMatch = filename.match(/_(\d{4})(\d{2})(\d{2})_/);
+        if (filenameDateMatch) {
+          const [_, year, month, day] = filenameDateMatch;
+          submissionDate = `${parseInt(day)}/${parseInt(month)}/${year}`;
         } else {
-          submissionDate = parsed.date ? parsed.date.toLocaleDateString('en-GB').replace(/\//g, '-') : "";
+          submissionDate = parsed.date ? parsed.date.toLocaleDateString('en-GB') : "";
         }
 
         let buyAmount = 0;
@@ -72,30 +74,46 @@ export async function registerRoutes(
         let rspForeign = "";
         let rspProducts: string[] = [];
 
+        const allowedProducts = ["Company Portfolio", "DPMS", "Unit Trust"];
+
         const sections = Array.from(doc.querySelectorAll("b, strong")).filter(el => {
           const text = el.textContent?.trim() || "";
           return text === "Buy" || text === "RSP Application" || text.includes("Buy") || text.includes("RSP Application");
         });
 
         for (const header of sections) {
-          const isBuy = header.textContent?.trim().includes("Buy");
-          const isRsp = header.textContent?.trim().includes("RSP Application");
+          const headerText = header.textContent?.trim() || "";
+          const isBuy = headerText.includes("Buy") && !headerText.includes("RSP");
+          const isRsp = headerText.includes("RSP Application");
           
+          if (!isBuy && !isRsp) continue;
+
           let current = header.parentElement?.nextElementSibling;
           
           while (current) {
+            const currentText = current.textContent?.trim() || "";
+            
+            // If we hit another main header, stop this section
+            if (current.querySelector("b, strong")) {
+              const innerText = current.querySelector("b, strong")?.textContent?.trim() || "";
+              if (["Buy", "RSP Application"].some(s => innerText.includes(s)) && innerText !== headerText) break;
+            }
+
             if (current.tagName === "P") {
-              const pText = current.textContent?.trim() || "";
-              if (pText && !["Buy", "RSP Application"].some(s => pText.includes(s))) {
-                if (isBuy) buyProducts.push(pText);
-                else if (isRsp) rspProducts.push(pText);
+              const pText = currentText;
+              if (pText && allowedProducts.some(ap => pText.includes(ap))) {
+                const matchedProduct = allowedProducts.find(ap => pText.includes(ap));
+                if (matchedProduct) {
+                  if (isBuy) buyProducts.push(matchedProduct);
+                  else if (isRsp) rspProducts.push(matchedProduct);
+                }
               }
             } else if (current.tagName === "TABLE") {
+              // Only process table if it's preceded by an allowed product or we're in a valid sub-section
               const rows = current.querySelectorAll("tr");
               if (rows.length > 1) {
                 const headers = Array.from(rows[0].querySelectorAll("th, td")).map(h => h.textContent?.trim() || "");
                 const amountIdx = headers.findIndex(h => h.includes("Amount"));
-                const currencyIdx = headers.findIndex(h => h.includes("Amount") || h.includes("Currency") || h.includes("Payment Mode"));
                 
                 for (let i = 1; i < rows.length; i++) {
                   const cols = Array.from(rows[i].querySelectorAll("td")).map(c => c.textContent?.trim() || "");
@@ -103,7 +121,9 @@ export async function registerRoutes(
                     const textValue = cols[amountIdx];
                     const val = parseFloat(textValue.replace(/[^0-9.]/g, ""));
                     if (!isNaN(val)) {
-                      if (textValue.includes("SGD") || (!textValue.match(/[A-Z]{3}/) && !cols.some(c => c.match(/^(USD|EUR|GBP|AUD|JPY|HKD)$/)))) {
+                      const isForeign = !textValue.includes("SGD") && (textValue.match(/[A-Z]{3}/) || cols.some(c => c.match(/^(USD|EUR|GBP|AUD|JPY|HKD)$/)));
+                      
+                      if (!isForeign) {
                         if (isBuy) buyAmount += val;
                         else if (isRsp) rspAmount += val;
                       } else {
@@ -116,11 +136,8 @@ export async function registerRoutes(
                   }
                 }
               }
-            } else if (current.querySelector("b, strong") && ["Buy", "RSP Application"].some(s => current?.textContent?.includes(s))) {
-              break; // Hit next main section
             }
             current = current.nextElementSibling;
-            if (current?.tagName === "P" && current.querySelector("b, strong") && ["Buy", "RSP Application"].some(s => current?.textContent?.includes(s))) break;
           }
         }
 
@@ -131,7 +148,8 @@ export async function registerRoutes(
           "Buy product": [...new Set(buyProducts)].join(", "),
           "RSP Application": rspAmount > 0 ? `SGD ${rspAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "",
           "RSP Application product": [...new Set(rspProducts)].join(", "),
-          "Foreign": [buyForeign, rspForeign].filter(Boolean).join("; ")
+          "Foreign Buy": buyForeign,
+          "Foreign RSP Application": rspForeign
         });
       }
 
@@ -145,7 +163,8 @@ export async function registerRoutes(
         { header: "Buy product", key: "Buy product" },
         { header: "RSP Application", key: "RSP Application" },
         { header: "RSP Application product", key: "RSP Application product" },
-        { header: "Foreign", key: "Foreign" }
+        { header: "Foreign Buy", key: "Foreign Buy" },
+        { header: "Foreign RSP Application", key: "Foreign RSP Application" }
       ];
 
       worksheet.addRows(results);
