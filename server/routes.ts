@@ -83,8 +83,9 @@ export async function registerRoutes(
 
         for (const header of sections) {
           const headerText = header.textContent?.trim() || "";
-          const isBuy = headerText.includes("Buy") && !headerText.includes("RSP");
-          const isRsp = headerText.includes("RSP Application");
+          // Strict matching for Buy and RSP Application only
+          const isBuy = headerText === "Buy";
+          const isRsp = headerText === "RSP Application";
           
           if (!isBuy && !isRsp) continue;
 
@@ -96,7 +97,19 @@ export async function registerRoutes(
             // If we hit another main header, stop this section
             if (current.querySelector("b, strong")) {
               const innerText = current.querySelector("b, strong")?.textContent?.trim() || "";
-              if (["Buy", "RSP Application"].some(s => innerText.includes(s)) && innerText !== headerText) break;
+              // Any bold/strong header with underline-like styling signals a new section
+              if (current.style.textDecoration === "underline" || (current.firstChild?.tagName === "B" || current.firstChild?.tagName === "STRONG")) {
+                 break;
+              }
+            }
+            
+            // Safety break if we see common header words in bold
+            const boldChild = current.querySelector("b, strong");
+            if (boldChild) {
+              const boldText = boldChild.textContent?.trim() || "";
+              if (["Switch", "Sell", "Rebalance", "RSP Amendment", "Consolidated Dividend"].some(s => boldText.includes(s))) {
+                break;
+              }
             }
 
             if (current.tagName === "P") {
