@@ -1,17 +1,20 @@
 import type { IncomingMessage, ServerResponse } from "http";
-import multer from "multer";
 import { simpleParser } from "mailparser";
 import { JSDOM } from "jsdom";
 import ExcelJS from "exceljs";
 import AdmZip from "adm-zip";
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 type UploadedFile = {
   buffer: Buffer;
   originalname: string;
   mimetype?: string;
 };
-
-const upload = multer({ storage: multer.memoryStorage() });
 
 function sendJson(
   res: ServerResponse,
@@ -23,20 +26,44 @@ function sendJson(
   res.end(JSON.stringify(payload));
 }
 
-function parseUploads(
-  req: IncomingMessage,
-  res: ServerResponse,
-): Promise<UploadedFile[]> {
+function readRequestBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    upload.array("files")(req as any, res as any, (err) => {
-      if (err) {
-        reject(err);
-        return;
-      }
+    const chunks: Buffer[] = [];
 
-      resolve((((req as any).files as UploadedFile[]) || []) as UploadedFile[]);
+    req.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
   });
+}
+
+async function parseUploads(req: IncomingMessage): Promise<UploadedFile[]> {
+  const contentType = req.headers["content-type"];
+  if (!contentType || !contentType.includes("multipart/form-data")) {
+    return [];
+  }
+
+  const bodyBuffer = await readRequestBody(req);
+  const multipartRequest = new Request("http://localhost/api/extract", {
+    method: "POST",
+    headers: { "content-type": contentType },
+    body: bodyBuffer,
+  });
+  const formData = await multipartRequest.formData();
+
+  const files: UploadedFile[] = [];
+  for (const entry of formData.getAll("files")) {
+    if (entry instanceof File) {
+      files.push({
+        buffer: Buffer.from(await entry.arrayBuffer()),
+        originalname: entry.name || "",
+        mimetype: entry.type || undefined,
+      });
+    }
+  }
+
+  return files;
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
@@ -46,7 +73,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   try {
-    const files = await parseUploads(req, res);
+    const files = await parseUploads(req);
     if (!files.length) {
       sendJson(res, 400, { message: "No files uploaded" });
       return;
@@ -56,19 +83,19 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const allFiles: UploadedFile[] = [];
 
     for (const file of files) {
-      if (file.mimetype === "application/zip" || file.originalname.endsWith(".zip")) {
+      const originalName = file.originalname.toLowerCase();
+      if (file.mimetype === "application/zip" || originalName.endsWith(".zip")) {
         const zip = new AdmZip(file.buffer);
         const zipEntries = zip.getEntries();
-
         for (const entry of zipEntries) {
-          if (entry.entryName.endsWith(".eml") && !entry.isDirectory) {
+          if (entry.entryName.toLowerCase().endsWith(".eml") && !entry.isDirectory) {
             allFiles.push({
               buffer: entry.getData(),
               originalname: entry.entryName,
             });
           }
         }
-      } else if (file.originalname.endsWith(".eml")) {
+      } else if (originalName.endsWith(".eml")) {
         allFiles.push(file);
       }
     }

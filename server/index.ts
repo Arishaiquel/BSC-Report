@@ -22,6 +22,48 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+function parseAllowedOrigins(raw: string | undefined): string[] | null {
+  if (!raw || raw.trim() === "" || raw.trim() === "*") {
+    return null;
+  }
+
+  return raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGIN);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (!origin) {
+    if (req.method === "OPTIONS") {
+      return res.status(204).end();
+    }
+    next();
+    return;
+  }
+
+  const isAllowed =
+    !allowedOrigins ||
+    allowedOrigins.includes(origin);
+
+  if (isAllowed) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.status(isAllowed ? 204 : 403).end();
+  }
+
+  next();
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -75,14 +117,18 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
+  const apiOnlyMode = process.env.API_ONLY === "true";
+
+  if (!apiOnlyMode) {
+    // importantly only setup vite in development and after
+    // setting up all the other routes so the catch-all route
+    // doesn't interfere with the other routes
+    if (process.env.NODE_ENV === "production") {
+      serveStatic(app);
+    } else {
+      const { setupVite } = await import("./vite");
+      await setupVite(httpServer, app);
+    }
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT

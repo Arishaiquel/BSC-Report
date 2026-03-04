@@ -1,32 +1,90 @@
-import type { Express } from "express";
+import type { Express, NextFunction, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { simpleParser } from "mailparser";
 import { JSDOM } from "jsdom";
 import ExcelJS from "exceljs";
 import AdmZip from "adm-zip";
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 
-const upload = multer({ storage: multer.memoryStorage() });
+type ParsedFile = {
+  buffer: Buffer;
+  originalname: string;
+};
+
+const MAX_UPLOAD_FILE_SIZE_BYTES = 550 * 1024 * 1024;
+const MAX_UPLOAD_FILES = 20;
+const uploadDir = path.join(os.tmpdir(), "bsc-report-uploads");
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadDir),
+    filename: (_req, file, cb) => {
+      const safeExt = path.extname(file.originalname || "").toLowerCase();
+      const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`;
+      cb(null, uniqueName);
+    },
+  }),
+  limits: {
+    fileSize: MAX_UPLOAD_FILE_SIZE_BYTES,
+    files: MAX_UPLOAD_FILES,
+  },
+});
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
-  app.post("/api/extract", upload.array("files"), async (req, res) => {
+  await fs.mkdir(uploadDir, { recursive: true });
+
+  const uploadFiles = (req: Request, res: Response, next: NextFunction) => {
+    upload.array("files")(req, res, (err) => {
+      if (!err) {
+        next();
+        return;
+      }
+
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          res.status(413).json({
+            message:
+              "A file is too large. Keep each file under 550MB and retry.",
+          });
+          return;
+        }
+
+        if (err.code === "LIMIT_FILE_COUNT") {
+          res.status(413).json({
+            message: `Too many files. Maximum is ${MAX_UPLOAD_FILES} files per request.`,
+          });
+          return;
+        }
+      }
+
+      next(err);
+    });
+  };
+
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true });
+  });
+
+  app.post("/api/extract", uploadFiles, async (req, res) => {
+    const uploadedFiles = (req.files as Express.Multer.File[]) || [];
     try {
-      const files = req.files as Express.Multer.File[];
-      if (!files || files.length === 0) {
+      if (!uploadedFiles.length) {
         return res.status(400).json({ message: "No files uploaded" });
       }
 
-      const results = [];
-      const allFiles = [];
+      const results: Array<Record<string, string>> = [];
+      const allFiles: ParsedFile[] = [];
 
       // Handle zip files if any
-      for (const file of files) {
+      for (const file of uploadedFiles) {
         if (file.mimetype === "application/zip" || file.originalname.endsWith(".zip")) {
-          const zip = new AdmZip(file.buffer);
+          const zip = new AdmZip(file.path);
           const zipEntries = zip.getEntries();
           for (const entry of zipEntries) {
             if (entry.entryName.endsWith(".eml") && !entry.isDirectory) {
@@ -37,14 +95,21 @@ export async function registerRoutes(
             }
           }
         } else if (file.originalname.endsWith(".eml")) {
-          allFiles.push(file);
+          allFiles.push({
+            buffer: await fs.readFile(file.path),
+            originalname: file.originalname,
+          });
         }
+      }
+
+      if (!allFiles.length) {
+        return res.status(400).json({ message: "No valid .eml files found in upload." });
       }
 
       for (const file of allFiles) {
         const parsed = await simpleParser(file.buffer);
         const html = parsed.html || parsed.textAsHtml || "";
-        const dom = new JSDOM(html);
+        const dom = new JSDOM(String(html));
         const doc = dom.window.document;
 
         // Policy Number extraction
@@ -61,18 +126,18 @@ export async function registerRoutes(
         const filenameDateMatch = filename.match(/_(\d{4})(\d{2})(\d{2})_/);
         if (filenameDateMatch) {
           const [_, year, month, day] = filenameDateMatch;
-          submissionDate = `${parseInt(day)}/${parseInt(month)}/${year}`;
+          submissionDate = `${parseInt(day, 10)}/${parseInt(month, 10)}/${year}`;
         } else {
           submissionDate = parsed.date ? parsed.date.toLocaleDateString('en-GB') : "";
         }
 
         let buyAmount = 0;
         let buyForeign = "";
-        let buyProducts: string[] = [];
+        const buyProducts: string[] = [];
         
         let rspAmount = 0;
         let rspForeign = "";
-        let rspProducts: string[] = [];
+        const rspProducts: string[] = [];
 
         const allowedProducts = ["Company Portfolio", "DPMS", "Unit Trust"];
 
@@ -213,6 +278,13 @@ export async function registerRoutes(
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: "Internal server error" });
+    } finally {
+      await Promise.allSettled(
+        uploadedFiles
+          .map((file) => file.path)
+          .filter((filePath): filePath is string => typeof filePath === "string")
+          .map((filePath) => fs.unlink(filePath)),
+      );
     }
   });
 
