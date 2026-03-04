@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, FileText, Download, Loader2 } from "lucide-react";
+import { Upload, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
@@ -59,15 +59,10 @@ export default function Home() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-black">
-      <div className="absolute inset-0 bg-[url('/wallpaper.jpg')] bg-cover bg-center" />
-      <div className="absolute inset-0 bg-black/60" />
-      <Card className="relative w-full max-w-lg bg-background/90 backdrop-blur-sm">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-6 h-6 text-primary" />
-            BSC Report 
-          </CardTitle>
+          <CardTitle>BSC Report</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4">
