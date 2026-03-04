@@ -59,8 +59,10 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-black">
+      <div className="absolute inset-0 bg-[url('/wallpaper.jpg')] bg-cover bg-center" />
+      <div className="absolute inset-0 bg-black/60" />
+      <Card className="relative w-full max-w-lg bg-background/90 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-6 h-6 text-primary" />
