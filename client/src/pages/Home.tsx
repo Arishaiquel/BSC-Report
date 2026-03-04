@@ -38,7 +38,7 @@ export default function Home() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "extracted_data.xlsx";
+      a.download = "extracted_BSC_data.xlsx";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -64,14 +64,14 @@ export default function Home() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-6 h-6 text-primary" />
-            Policy Data Extractor
+            BSC Report 
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4">
             <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
             <div className="space-y-1">
-              <p className="text-sm font-medium">Select your files</p>
+              <p className="text-sm font-medium">Select your files(Save the BSC Transactions into a zip folder -{'>'} click 'Upload')</p>
               <p className="text-xs text-muted-foreground">Upload .eml files or a .zip folder</p>
             </div>
             <Input 

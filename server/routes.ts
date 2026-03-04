@@ -101,7 +101,7 @@ export async function registerRoutes(
               // If it's a different section that is NOT Buy or RSP Application, we stop this section's processing.
               // This handles cases like Buy -> Switch -> RSP Application correctly.
               if (innerText !== headerText && 
-                  ["Switch", "Sell", "Rebalance", "RSP Amendment", "Consolidated Dividend"].some(s => innerText.includes(s))) {
+                  ["Switch", "Sell", "Rebalance", "RSP Amendment", "Consolidated Dividend", "ETF"].some(s => innerText.includes(s))) {
                 break;
               }
               
@@ -115,14 +115,24 @@ export async function registerRoutes(
             // Check for the specific underlined headers as well
             if (current.tagName === "P" && current.style.textDecoration === "underline") {
               const pText = current.textContent?.trim() || "";
-              if (pText !== headerText && ["Switch", "Sell", "Rebalance", "RSP Amendment"].some(s => pText.includes(s))) {
+              if (pText !== headerText && ["Switch", "Sell", "Rebalance", "RSP Amendment", "ETF"].some(s => pText.includes(s))) {
                 break;
               }
             }
 
             if (current.tagName === "P") {
               const pText = currentText;
-              if (pText && allowedProducts.some(ap => pText.includes(ap))) {
+              // Strict check to exclude ETF/Exchange Traded Fund sections
+              if (pText && (pText.includes("ETF") || pText.includes("Exchange Traded Fund"))) {
+                // If this is an ETF paragraph, we should skip the next table entirely
+                let next = current.nextElementSibling;
+                while (next && next.tagName !== "P" && next.tagName !== "TABLE" && !next.querySelector("b, strong")) {
+                  next = next.nextElementSibling;
+                }
+                if (next && next.tagName === "TABLE") {
+                  current = next; // Skip processing this table
+                }
+              } else if (pText && allowedProducts.some(ap => pText.includes(ap))) {
                 const matchedProduct = allowedProducts.find(ap => pText.includes(ap));
                 if (matchedProduct) {
                   if (isBuy) buyProducts.push(matchedProduct);
