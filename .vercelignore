@@ -1,0 +1,7 @@
+.git
+.local
+node_modules
+dist
+attached_assets
+extracted_data.xlsx
+*.eml

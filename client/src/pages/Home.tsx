@@ -71,7 +71,7 @@ export default function Home() {
           <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4">
             <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
             <div className="space-y-1">
-              <p className="text-sm font-medium">Select your files(Save the BSC Transactions into a zip folder -{'>'} click 'Upload')</p>
+              <p className="text-sm font-medium">Select your files(Save the BSC Transactions into a zip folder -{'>'} click 'Choose Files')</p>
               <p className="text-xs text-muted-foreground">Upload .eml files or a .zip folder</p>
             </div>
             <Input 

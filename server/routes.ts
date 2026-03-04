@@ -113,7 +113,11 @@ export async function registerRoutes(
             }
             
             // Check for the specific underlined headers as well
-            if (current.tagName === "P" && current.style.textDecoration === "underline") {
+            if (
+              current.tagName === "P" &&
+              current instanceof dom.window.HTMLElement &&
+              current.style.textDecoration === "underline"
+            ) {
               const pText = current.textContent?.trim() || "";
               if (pText !== headerText && ["Switch", "Sell", "Rebalance", "RSP Amendment", "ETF"].some(s => pText.includes(s))) {
                 break;
