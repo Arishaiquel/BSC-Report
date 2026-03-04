@@ -55,14 +55,14 @@ export default function Home() {
       <div className="w-full max-w-6xl grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <Card className="h-full">
           <CardHeader>
-            <CardTitle>How This App Works</CardTitle>
+            <CardTitle> How to use:</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 text-sm">
             <section className="space-y-2">
               <p className="font-semibold">What it does</p>
               <p className="text-muted-foreground">
-                This tool reads your uploaded EML emails (or ZIP containing EML files) and generates
-                an Excel summary for BSC transaction records.
+                This tool reads your uploaded email files (or ZIP folder containing email files) and exports
+                an Excel for the BSC transaction report. - you can just upload the downloaded ZIP folder from iFAST. Some rows will have no Buy/RSP Amounts, this are Sell, switch, RSP Amendment, etc transactions.
               </p>
             </section>
 
@@ -71,18 +71,17 @@ export default function Home() {
               <ul className="list-disc pl-5 text-muted-foreground space-y-1">
                 <li>Policy Number</li>
                 <li>Submission Date</li>
-                <li>Buy amount and Buy product</li>
-                <li>RSP Application amount and RSP Application product</li>
-                <li>Foreign currency Buy and RSP amounts</li>
+                <li>Buy amount and RSP Application amount </li>
+                <li>Buy product type and RSP Application product type</li>
               </ul>
             </section>
 
             <section className="space-y-2">
               <p className="font-semibold">What it ignores</p>
               <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                <li>Sections such as Switch, Sell, Rebalance, and RSP Amendment</li>
-                <li>ETF / Exchange Traded Fund blocks</li>
-                <li>Files that are not .eml (except .zip containers)</li>
+                <li>Switch, Sell, Rebalance, RSP Amendment, ETF</li>
+                <li>Foreign currency transactions are in a separate column</li>
+                <li>Files that are not .eml (except .zip files)</li>
               </ul>
             </section>
           </CardContent>
