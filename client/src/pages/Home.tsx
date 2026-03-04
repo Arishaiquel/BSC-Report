@@ -52,48 +52,85 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>BSC Report</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4">
-            <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Select your files(Save the BSC Transactions into a zip folder -{'>'} click 'Choose Files')</p>
-              <p className="text-xs text-muted-foreground">
-                Upload .eml files or a .zip folder (processed locally in your browser)
+      <div className="w-full max-w-6xl grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle>How This App Works</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 text-sm">
+            <section className="space-y-2">
+              <p className="font-semibold">What it does</p>
+              <p className="text-muted-foreground">
+                This tool reads your uploaded EML emails (or ZIP containing EML files) and generates
+                an Excel summary for BSC transaction records.
               </p>
-            </div>
-            <Input 
-              type="file" 
-              multiple 
-              accept=".eml,.zip"
-              className="max-w-xs mx-auto"
-              onChange={(e) => setFiles(e.target.files)}
-            />
-          </div>
+            </section>
 
-          <Button 
-            className="w-full" 
-            size="lg"
-            onClick={handleUpload}
-            disabled={loading || !files}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                Extract to Excel
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+            <section className="space-y-2">
+              <p className="font-semibold">What it extracts</p>
+              <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                <li>Policy Number</li>
+                <li>Submission Date</li>
+                <li>Buy amount and Buy product</li>
+                <li>RSP Application amount and RSP Application product</li>
+                <li>Foreign currency Buy and RSP amounts</li>
+              </ul>
+            </section>
+
+            <section className="space-y-2">
+              <p className="font-semibold">What it ignores</p>
+              <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                <li>Sections such as Switch, Sell, Rebalance, and RSP Amendment</li>
+                <li>ETF / Exchange Traded Fund blocks</li>
+                <li>Files that are not .eml (except .zip containers)</li>
+              </ul>
+            </section>
+          </CardContent>
+        </Card>
+
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>BSC Report</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4">
+              <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Select your files(Save the BSC Transactions into a zip folder -{'>'} click 'Choose Files')</p>
+                <p className="text-xs text-muted-foreground">
+                  Upload .eml files or a .zip folder (processed locally in your browser)
+                </p>
+              </div>
+              <Input 
+                type="file" 
+                multiple 
+                accept=".eml,.zip"
+                className="max-w-xs mx-auto"
+                onChange={(e) => setFiles(e.target.files)}
+              />
+            </div>
+
+            <Button 
+              className="w-full" 
+              size="lg"
+              onClick={handleUpload}
+              disabled={loading || !files}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Extract to Excel
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
