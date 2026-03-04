@@ -41,7 +41,7 @@ const WORKBOOK_COLUMNS: Array<keyof ExtractionRow> = [
 
 function formatSgd(value: number): string {
   if (value <= 0) return "";
-  return `SGD ${value.toLocaleString("en-US", {
+  return `${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
