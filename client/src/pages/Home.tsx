@@ -6,12 +6,14 @@ import { Upload, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
-  const [files, setFiles] = useState<FileList | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [bscFiles, setBscFiles] = useState<FileList | null>(null);
+  const [bscLoading, setBscLoading] = useState(false);
+  const [fameFiles, setFameFiles] = useState<FileList | null>(null);
+  const [fameLoading, setFameLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleUpload = async () => {
-    if (!files || files.length === 0) {
+  const handleBscUpload = async () => {
+    if (!bscFiles || bscFiles.length === 0) {
       toast({
         title: "No files selected",
         description: "Please select EML files or a ZIP file containing EMLs.",
@@ -20,11 +22,11 @@ export default function Home() {
       return;
     }
 
-    setLoading(true);
+    setBscLoading(true);
 
     try {
       const { buildExtractionWorkbook } = await import("@/lib/localExtract");
-      const blob = await buildExtractionWorkbook(files);
+      const blob = await buildExtractionWorkbook(bscFiles);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -46,29 +48,69 @@ export default function Home() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setBscLoading(false);
+    }
+  };
+
+  const handleFameUpload = async () => {
+    if (!fameFiles || fameFiles.length === 0) {
+      toast({
+        title: "No files selected",
+        description: "Please select MSG files or a ZIP file containing MSGs.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setFameLoading(true);
+
+    try {
+      const { buildFameExtractionWorkbook } = await import("@/lib/localExtractFame");
+      const blob = await buildFameExtractionWorkbook(fameFiles);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "extracted_FAME_data.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: "FAME extraction completed and Excel is downloading.",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to extract FAME data";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setFameLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-        <Card className="h-full">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 xl:p-10">
+      <div className="w-full max-w-[1850px] grid gap-8 xl:grid-cols-[1.1fr_1fr_1fr]">
+        <Card className="h-full rounded-none">
           <CardHeader>
-            <CardTitle> How to use:</CardTitle>
+            <CardTitle className="text-2xl md:text-3xl"> How to use:</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 text-sm">
-            <section className="space-y-2">
-              <p className="font-semibold">What it does</p>
+          <CardContent className="space-y-8 text-base md:text-lg">
+            <section className="space-y-3">
+              <p className="font-semibold text-lg md:text-xl">What it does</p>
               <p className="text-muted-foreground">
                 This tool reads your uploaded email files (or ZIP folder containing email files) and exports
-                an Excel for the BSC transaction report. - you can just upload the downloaded ZIP folder from iFAST. Some rows will have no Buy/RSP Amounts, this are Sell, switch, RSP Amendment, etc transactions.
+                an Excel file. -  Upload a zip file containing the transaction files, then click "Export to Excel". Some rows will have no Buy/RSP Amounts, these are Sell, switch, RSP Amendment, etc transactions.
               </p>
             </section>
 
-            <section className="space-y-2">
-              <p className="font-semibold">What it extracts</p>
-              <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+            <section className="space-y-3">
+              <p className="font-semibold text-lg md:text-xl">What it extracts</p>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li>Policy Number</li>
                 <li>Submission Date</li>
                 <li>Buy amount and RSP Application amount </li>
@@ -76,27 +118,26 @@ export default function Home() {
               </ul>
             </section>
 
-            <section className="space-y-2">
-              <p className="font-semibold">What it ignores</p>
-              <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+            <section className="space-y-3">
+              <p className="font-semibold text-lg md:text-xl">What it ignores</p>
+              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
                 <li>Switch, Sell, Rebalance, RSP Amendment, ETF</li>
                 <li>Foreign currency transactions are in a separate column</li>
-                <li>Files that are not .eml (except .zip files)</li>
               </ul>
             </section>
           </CardContent>
         </Card>
 
-        <Card className="w-full">
+        <Card className="w-full rounded-none">
           <CardHeader>
-            <CardTitle>BSC Report</CardTitle>
+            <CardTitle className="text-2xl md:text-3xl">iFAST</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center space-y-4">
-              <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Select your files(Save the BSC Transactions into a zip folder -{'>'} click 'Choose Files')</p>
-                <p className="text-xs text-muted-foreground">
+          <CardContent className="space-y-6 text-base md:text-lg">
+            <div className="rounded-lg p-10 text-center space-y-5">
+              <Upload className="w-14 h-14 text-muted-foreground mx-auto" />
+              <div className="space-y-2">
+                <p className="text-base md:text-lg font-medium">Select your files(Save the BSC Transactions into a zip folder -{'>'} click 'Choose Files')</p>
+                <p className="text-sm md:text-base text-muted-foreground">
                   Upload .eml files or a .zip folder (processed locally in your browser)
                 </p>
               </div>
@@ -104,18 +145,18 @@ export default function Home() {
                 type="file" 
                 multiple 
                 accept=".eml,.zip"
-                className="max-w-xs mx-auto"
-                onChange={(e) => setFiles(e.target.files)}
+                className="max-w-sm mx-auto text-base"
+                onChange={(e) => setBscFiles(e.target.files)}
               />
             </div>
 
             <Button 
-              className="w-full" 
+              className="w-full text-lg h-14" 
               size="lg"
-              onClick={handleUpload}
-              disabled={loading || !files}
+              onClick={handleBscUpload}
+              disabled={bscLoading || !bscFiles}
             >
-              {loading ? (
+              {bscLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processing...
@@ -123,7 +164,52 @@ export default function Home() {
               ) : (
                 <>
                   <Download className="mr-2 h-4 w-4" />
-                  Extract to Excel
+                  Export to Excel
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="w-full rounded-none">
+          <CardHeader>
+            <CardTitle className="text-2xl md:text-3xl">FAME</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 text-base md:text-lg">
+            <div className="rounded-lg p-10 text-center space-y-5">
+              <Upload className="w-14 h-14 text-muted-foreground mx-auto" />
+              <div className="space-y-2">
+                <p className="text-base md:text-lg font-medium">
+                  Select your files (Save FAME emails into a zip folder -{'>'} click 'Choose Files')
+                </p>
+                <p className="text-sm md:text-base text-muted-foreground">
+                  Upload .msg files or a .zip folder (processed locally in your browser)
+                </p>
+              </div>
+              <Input
+                type="file"
+                multiple
+                accept=".msg,.zip"
+                className="max-w-sm mx-auto text-base"
+                onChange={(e) => setFameFiles(e.target.files)}
+              />
+            </div>
+
+            <Button
+              className="w-full text-lg h-14"
+              size="lg"
+              onClick={handleFameUpload}
+              disabled={fameLoading || !fameFiles}
+            >
+              {fameLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export to Excel
                 </>
               )}
             </Button>

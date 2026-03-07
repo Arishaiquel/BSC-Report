@@ -16,6 +16,77 @@ type UploadedFile = {
   mimetype?: string;
 };
 
+function normalizeSpaces(value: string): string {
+  return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function cleanAdvisorName(raw: string): string {
+  let cleaned = normalizeSpaces(raw);
+  while (/\([^()]*\)\s*$/.test(cleaned)) {
+    cleaned = cleaned.replace(/\s*\([^()]*\)\s*$/, "").trim();
+  }
+  cleaned = cleaned.replace(/\s*-\s*iPASS Approval.*$/i, "").trim();
+  return cleaned;
+}
+
+function extractAdvisorName(doc: Document): string {
+  const activityHeader = Array.from(doc.querySelectorAll("b, strong")).find(
+    (el) => (el.textContent?.trim().toLowerCase() || "") === "activity and comments",
+  );
+
+  let activityTable: HTMLTableElement | null = null;
+  if (activityHeader) {
+    let current: Element | null =
+      activityHeader.closest("p")?.nextElementSibling ||
+      activityHeader.parentElement?.nextElementSibling ||
+      activityHeader.nextElementSibling;
+
+    while (current) {
+      if (current.tagName === "TABLE") {
+        activityTable = current as HTMLTableElement;
+        break;
+      }
+
+      const nestedTable = current.querySelector("table");
+      if (nestedTable) {
+        activityTable = nestedTable as HTMLTableElement;
+        break;
+      }
+
+      if (current.querySelector("b, strong")) break;
+      current = current.nextElementSibling;
+    }
+  }
+
+  if (!activityTable) {
+    activityTable =
+      (Array.from(doc.querySelectorAll("table")).find((table) => {
+        const headerCells = Array.from(table.querySelectorAll("tr:first-child th, tr:first-child td"))
+          .map((cell) => normalizeSpaces(cell.textContent || "").toLowerCase());
+        return headerCells.some((header) => header === "author");
+      }) as HTMLTableElement | undefined) || null;
+  }
+
+  if (!activityTable) return "";
+
+  const rows = Array.from(activityTable.querySelectorAll("tr"));
+  if (rows.length < 2) return "";
+
+  const headers = Array.from(rows[0].querySelectorAll("th, td"))
+    .map((cell) => normalizeSpaces(cell.textContent || "").toLowerCase());
+  const authorIdx = headers.findIndex((header) => header === "author");
+  if (authorIdx === -1) return "";
+
+  for (let i = 1; i < rows.length; i++) {
+    const cells = Array.from(rows[i].querySelectorAll("td"));
+    if (authorIdx >= cells.length) continue;
+    const value = cleanAdvisorName(cells[authorIdx].textContent || "");
+    if (value) return value;
+  }
+
+  return "";
+}
+
 function sendJson(
   res: ServerResponse,
   statusCode: number,
@@ -105,6 +176,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       const html = parsed.html || parsed.textAsHtml || "";
       const dom = new JSDOM(String(html));
       const doc = dom.window.document;
+      const advisorName = extractAdvisorName(doc);
 
       let policyNumber = "";
       const bodyText = doc.body.textContent || "";
@@ -274,7 +346,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
                 maximumFractionDigits: 2,
               })}`
             : "",
-        "Buy product": [...new Set(buyProducts)].join(", "),
         "RSP Application":
           rspAmount > 0
             ? `SGD ${rspAmount.toLocaleString("en-US", {
@@ -282,6 +353,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
                 maximumFractionDigits: 2,
               })}`
             : "",
+        "advisor name": advisorName,
+        "Buy product": [...new Set(buyProducts)].join(", "),
         "RSP Application product": [...new Set(rspProducts)].join(", "),
         "Foreign Buy": buyForeign,
         "Foreign RSP Application": rspForeign,
@@ -295,8 +368,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       { header: "Policy Number", key: "Policy Number" },
       { header: "Submission Date", key: "Submission Date" },
       { header: "Buy", key: "Buy" },
-      { header: "Buy product", key: "Buy product" },
       { header: "RSP Application", key: "RSP Application" },
+      { header: "advisor name", key: "advisor name" },
+      { header: "Buy product", key: "Buy product" },
       { header: "RSP Application product", key: "RSP Application product" },
       { header: "Foreign Buy", key: "Foreign Buy" },
       { header: "Foreign RSP Application", key: "Foreign RSP Application" },
