@@ -103,13 +103,16 @@ export default function Home() {
             <p>
               Step 1: Make sure transactions are in .eml (iFAST) and .msg (FAME) file type. Compress them into a zip folder.
             </p>
-            <p>Step 2: Click upload zip folder.</p>
+            <p>Step 2: Click "Choose files" and upload zip folder.</p>
             <p>Step 3: Click Export excel file.</p>
             <p>
               Step 4: Open file. Columns are: Policy Number, Submission Date, Buy, RSP, Adviser Name, Buy/RSP product type, Buy/RSP (Foreign Currency). It will ignore: Switch, Sell, Rebalance, RSP Amendment, ETF.
             </p>
             <p>
               Step 5: Copy the Policy Number, Submission Date, Buy, RSP columns into BSC excel sheet, add in a column next to Adviser name and cross refer to the exported adviser name column.
+            </p>
+            <p>
+              *Note: All files are processed client-side, meaning your files never leave your computer so dont worry abt safety issues
             </p>
           </CardContent>
         </Card>
