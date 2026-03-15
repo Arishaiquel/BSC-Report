@@ -99,32 +99,18 @@ export default function Home() {
           <CardHeader>
             <CardTitle className="text-2xl md:text-3xl"> How to use:</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-8 text-base md:text-lg">
-            <section className="space-y-3">
-              <p className="font-semibold text-lg md:text-xl">What it does</p>
-              <p className="text-muted-foreground">
-                This tool reads your uploaded email files (or ZIP folder containing email files) and exports
-                an Excel file. -  Upload a zip file containing the transaction files, then click "Export to Excel". Some rows will have no Buy/RSP Amounts, these are Sell, switch, RSP Amendment, etc transactions.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <p className="font-semibold text-lg md:text-xl">What it extracts</p>
-              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                <li>Policy Number</li>
-                <li>Submission Date</li>
-                <li>Buy amount and RSP Application amount </li>
-                <li>Buy product type and RSP Application product type</li>
-              </ul>
-            </section>
-
-            <section className="space-y-3">
-              <p className="font-semibold text-lg md:text-xl">What it ignores</p>
-              <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                <li>Switch, Sell, Rebalance, RSP Amendment, ETF</li>
-                <li>Foreign currency transactions are in a separate column</li>
-              </ul>
-            </section>
+          <CardContent className="space-y-4 text-base md:text-lg text-muted-foreground">
+            <p>
+              Step 1: Make sure transactions are in .eml (iFAST) and .msg (FAME) file type. Compress them into a zip folder.
+            </p>
+            <p>Step 2: Click upload zip folder.</p>
+            <p>Step 3: Click Export excel file.</p>
+            <p>
+              Step 4: Open file. Columns are: Policy Number, Submission Date, Buy, RSP, Adviser Name, Buy/RSP product type, Buy/RSP (Foreign Currency). It will ignore: Switch, Sell, Rebalance, RSP Amendment, ETF.
+            </p>
+            <p>
+              Step 5: Copy the Policy Number, Submission Date, Buy, RSP columns into BSC excel sheet, add in a column next to Adviser name and cross refer to the exported adviser name column.
+            </p>
           </CardContent>
         </Card>
 
