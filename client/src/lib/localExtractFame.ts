@@ -140,7 +140,7 @@ function formatForeignByCurrency(entries: Map<string, number>): string {
 
 function parseMessageText(bodyText: string, messageDate?: string): FameExtractionRow {
   const policyNumber = normalizeCell(
-    bodyText.match(/Your Account Number:\s*([^\r\n]+)/i)?.[1] || "",
+    bodyText.match(/Your Account Number:\s*(\d+)/i)?.[1] || "",
   );
 
   const advisorName = normalizeCell(
@@ -243,6 +243,121 @@ function parseMessageText(bodyText: string, messageDate?: string): FameExtractio
   };
 }
 
+function parseMessageHtml(
+  htmlBody: string,
+  messageDate?: string,
+  fallbackBodyText = "",
+): FameExtractionRow {
+  const doc = new DOMParser().parseFromString(htmlBody || "", "text/html");
+  const docText = doc.body.textContent || "";
+  const combinedText = `${docText}\n${fallbackBodyText}`.trim();
+
+  const policyNumber = normalizeCell(
+    combinedText.match(/Your Account Number:\s*(\d+)/i)?.[1] || "",
+  );
+
+  const advisorName = normalizeCell(
+    combinedText.match(/FA representative,\s*([^\r\n.]+)/i)?.[1] || "",
+  );
+
+  let buyAmount = 0;
+  let rspAmount = 0;
+  const buyProducts = new Set<string>();
+  const rspProducts = new Set<string>();
+  const foreignBuy = new Map<string, number>();
+  const foreignRsp = new Map<string, number>();
+
+  const tables = Array.from(doc.querySelectorAll("table"));
+
+  for (const table of tables) {
+    const rows = Array.from(table.querySelectorAll("tr"));
+    if (rows.length < 2) continue;
+
+    let headerRowIndex = -1;
+    let fundIdx = -1;
+    let typeIdx = -1;
+    let currencyIdx = -1;
+    let grossIdx = -1;
+
+    for (let i = 0; i < rows.length; i++) {
+      const headers = Array.from(rows[i].querySelectorAll("th, td")).map((cell) =>
+        normalizeHeader(normalizeCell(cell.textContent || "")),
+      );
+
+      if (headers.length === 0) continue;
+
+      fundIdx = headers.findIndex((header) => header === "fund");
+      typeIdx = headers.findIndex((header) => header === "transactiontype");
+      currencyIdx = headers.findIndex((header) => header === "currency");
+      grossIdx = headers.findIndex((header) => header === "grossamt");
+
+      if (fundIdx !== -1 && typeIdx !== -1 && currencyIdx !== -1 && grossIdx !== -1) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1) continue;
+
+    for (let i = headerRowIndex + 1; i < rows.length; i++) {
+      const cells = Array.from(rows[i].querySelectorAll("td")).map((cell) =>
+        normalizeCell(cell.textContent || ""),
+      );
+      if (cells.length === 0) continue;
+
+      if (
+        fundIdx >= cells.length ||
+        typeIdx >= cells.length ||
+        currencyIdx >= cells.length ||
+        grossIdx >= cells.length
+      ) {
+        continue;
+      }
+
+      const transactionType = cells[typeIdx].toLowerCase();
+      if (transactionType !== "subscription" && transactionType !== "rsp") {
+        continue;
+      }
+
+      const fund = cells[fundIdx];
+      const currency = cells[currencyIdx].toUpperCase();
+      const amount = parseGrossAmount(cells[grossIdx]);
+      if (Number.isNaN(amount)) continue;
+
+      const isSubscription = transactionType === "subscription";
+      const isSgd = currency === "SGD";
+
+      if (isSubscription) {
+        if (fund) buyProducts.add(fund);
+        if (isSgd) {
+          buyAmount += amount;
+        } else if (currency) {
+          foreignBuy.set(currency, (foreignBuy.get(currency) || 0) + amount);
+        }
+      } else {
+        if (fund) rspProducts.add(fund);
+        if (isSgd) {
+          rspAmount += amount;
+        } else if (currency) {
+          foreignRsp.set(currency, (foreignRsp.get(currency) || 0) + amount);
+        }
+      }
+    }
+  }
+
+  return {
+    "Policy Number": policyNumber,
+    "Submission Date": parseSubmissionDate(combinedText, messageDate),
+    Buy: formatAmount(buyAmount),
+    RSP: formatAmount(rspAmount),
+    "advisor name": advisorName,
+    "Buy product type": Array.from(buyProducts).join(", "),
+    "RSP product type": Array.from(rspProducts).join(", "),
+    "Foreign Buy": formatForeignByCurrency(foreignBuy),
+    "Foreign RSP": formatForeignByCurrency(foreignRsp),
+  };
+}
+
 async function collectMsgFiles(files: FileList): Promise<LocalMsgFile[]> {
   const collectedFiles: LocalMsgFile[] = [];
 
@@ -288,14 +403,17 @@ export async function buildFameExtractionWorkbook(files: FileList): Promise<Blob
     const htmlBody = ((parsed as { bodyHtml?: string; bodyHTML?: string }).bodyHtml ||
       (parsed as { bodyHtml?: string; bodyHTML?: string }).bodyHTML ||
       "") as string;
-    const fallbackTextFromHtml = htmlBody
-      ? new DOMParser().parseFromString(htmlBody, "text/html").body.textContent || ""
-      : "";
-    const bodyText = parsed.body || fallbackTextFromHtml;
+    const bodyText = (parsed.body || "") as string;
+    const messageDate = parsed.messageDeliveryTime || parsed.clientSubmitTime || "";
 
-    rows.push(
-      parseMessageText(bodyText, parsed.messageDeliveryTime || parsed.clientSubmitTime || ""),
-    );
+    if (htmlBody) {
+      const htmlRow = parseMessageHtml(htmlBody, messageDate, bodyText);
+      const hasNoExtractedAmounts =
+        !htmlRow.Buy && !htmlRow.RSP && !htmlRow["Foreign Buy"] && !htmlRow["Foreign RSP"];
+      rows.push(hasNoExtractedAmounts ? parseMessageText(bodyText, messageDate) : htmlRow);
+    } else {
+      rows.push(parseMessageText(bodyText, messageDate));
+    }
 
     if (i > 0 && i % 10 === 0) {
       await new Promise((resolve) => setTimeout(resolve, 0));
