@@ -112,7 +112,7 @@ export default function Home() {
               Step 5: Copy the Policy Number, Submission Date, Buy, RSP columns into BSC excel sheet, add in a column next to Adviser name and cross refer to the exported adviser name column.
             </p>
             <p>
-              *Note: All files are processed client-side, meaning your files never leave your computer so dont worry abt safety issues. For any issues or feedback, please contact me at <a href="mailto:arishaiquel.work@gmail.com">arishaiquel.work@gmail.com</a>
+              *Note: All files are processed client-side, meaning your files never leave your computer so dont worry abt safety issues. For any issues or feedback, please contact me at <a href="mailto:arishaiquel.work@gmail.com" className="text-blue-600 underline">arishaiquel.work@gmail.com</a>
             </p>
           </CardContent>
         </Card>
