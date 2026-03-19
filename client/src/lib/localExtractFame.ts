@@ -199,7 +199,9 @@ function parseMessageText(bodyText: string, messageDate?: string): FameExtractio
         }
 
         const transactionType = cells[typeIdx].toLowerCase();
-        if (transactionType !== "subscription" && transactionType !== "rsp") {
+        const isSubscription = transactionType.includes("subscription");
+        const isRsp = transactionType === "rsp" || transactionType.includes("rsp");
+        if (!isSubscription && !isRsp) {
           continue;
         }
 
@@ -208,7 +210,6 @@ function parseMessageText(bodyText: string, messageDate?: string): FameExtractio
         const amount = parseGrossAmount(cells[grossIdx]);
         if (Number.isNaN(amount)) continue;
 
-        const isSubscription = transactionType === "subscription";
         const isSgd = currency === "SGD";
 
         if (isSubscription) {
@@ -225,6 +226,42 @@ function parseMessageText(bodyText: string, messageDate?: string): FameExtractio
           } else if (currency) {
             foreignRsp.set(currency, (foreignRsp.get(currency) || 0) + amount);
           }
+        }
+      }
+    }
+  }
+
+  // Fallback for plain-text bodies that are not tab-delimited but still contain order rows.
+  if (buyAmount === 0 && rspAmount === 0 && foreignBuy.size === 0 && foreignRsp.size === 0) {
+    const flattened = bodyText.replace(/\u00a0/g, " ");
+    const rowPattern =
+      /([A-Za-z0-9][A-Za-z0-9&().,'\/+\- ]{6,}?)\s+(Subscription|RSP(?:\s+Application)?)\s+(?:Cash|CPF|SRS|[A-Za-z ]{2,})\s+([A-Z]{3})\s+([0-9][0-9,]*(?:\.[0-9]+)?)/gi;
+    let match: RegExpExecArray | null;
+    while ((match = rowPattern.exec(flattened)) !== null) {
+      const fund = normalizeCell(match[1] || "");
+      const transactionType = (match[2] || "").toLowerCase();
+      const currency = (match[3] || "").toUpperCase();
+      const amount = parseGrossAmount(match[4] || "");
+      if (Number.isNaN(amount)) continue;
+
+      const isSubscription = transactionType.includes("subscription");
+      const isRsp = transactionType.includes("rsp");
+      if (!isSubscription && !isRsp) continue;
+
+      const isSgd = currency === "SGD";
+      if (isSubscription) {
+        if (fund) buyProducts.add(fund);
+        if (isSgd) {
+          buyAmount += amount;
+        } else if (currency) {
+          foreignBuy.set(currency, (foreignBuy.get(currency) || 0) + amount);
+        }
+      } else {
+        if (fund) rspProducts.add(fund);
+        if (isSgd) {
+          rspAmount += amount;
+        } else if (currency) {
+          foreignRsp.set(currency, (foreignRsp.get(currency) || 0) + amount);
         }
       }
     }
@@ -315,7 +352,9 @@ function parseMessageHtml(
       }
 
       const transactionType = cells[typeIdx].toLowerCase();
-      if (transactionType !== "subscription" && transactionType !== "rsp") {
+      const isSubscription = transactionType.includes("subscription");
+      const isRsp = transactionType === "rsp" || transactionType.includes("rsp");
+      if (!isSubscription && !isRsp) {
         continue;
       }
 
@@ -324,7 +363,6 @@ function parseMessageHtml(
       const amount = parseGrossAmount(cells[grossIdx]);
       if (Number.isNaN(amount)) continue;
 
-      const isSubscription = transactionType === "subscription";
       const isSgd = currency === "SGD";
 
       if (isSubscription) {
