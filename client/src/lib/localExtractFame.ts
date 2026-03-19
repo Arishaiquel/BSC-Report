@@ -405,9 +405,11 @@ export async function buildFameExtractionWorkbook(files: FileList): Promise<Blob
       "") as string;
     const bodyText = (parsed.body || "") as string;
     const messageDate = parsed.messageDeliveryTime || parsed.clientSubmitTime || "";
+    const bodyLooksLikeHtml = /<(html|body|table|tr|td|th|p|div)\b/i.test(bodyText);
+    const htmlCandidate = htmlBody || (bodyLooksLikeHtml ? bodyText : "");
 
-    if (htmlBody) {
-      const htmlRow = parseMessageHtml(htmlBody, messageDate, bodyText);
+    if (htmlCandidate) {
+      const htmlRow = parseMessageHtml(htmlCandidate, messageDate, bodyText);
       const hasNoExtractedAmounts =
         !htmlRow.Buy && !htmlRow.RSP && !htmlRow["Foreign Buy"] && !htmlRow["Foreign RSP"];
       rows.push(hasNoExtractedAmounts ? parseMessageText(bodyText, messageDate) : htmlRow);
