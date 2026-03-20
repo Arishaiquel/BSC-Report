@@ -124,14 +124,18 @@ function extractAdvisorName(doc: Document): string {
   const headerCells = Array.from(rows[0].querySelectorAll("th, td"))
     .map((cell) => normalizeSpaces(cell.textContent || "").toLowerCase());
   const authorIndex = headerCells.findIndex((header) => header === "author");
-  if (authorIndex === -1) return "";
+  const detailsIndex = headerCells.findIndex((header) => header === "details");
+  if (authorIndex === -1 || detailsIndex === -1) return "";
 
   for (let i = 1; i < rows.length; i++) {
     const cells = Array.from(rows[i].querySelectorAll("td"));
-    if (authorIndex >= cells.length) continue;
+    if (authorIndex >= cells.length || detailsIndex >= cells.length) continue;
 
-    const value = cleanAdvisorName(cells[authorIndex].textContent || "");
-    if (value) return value;
+    const detailsValue = normalizeSpaces(cells[detailsIndex].textContent || "");
+    if (!/\(?\btrade created\b\)?/i.test(detailsValue)) continue;
+
+    const authorValue = cleanAdvisorName(cells[authorIndex].textContent || "");
+    if (authorValue) return authorValue;
   }
 
   return "";
